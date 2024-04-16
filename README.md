@@ -27,4 +27,7 @@ This was easy to fix: use Homebrew casks.
     ```
 
 ## Change Pane Background Per SSH Host
-TBD.
+Thoughts:
+- As Ghostty does not have scripting supported, yet, my Wezterm approach (events etc) will not work.
+- Probably https://github.com/drinchev/phook is the way to go. This is not new, I used this before starting to use Wezterm's events.
+
