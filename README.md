@@ -33,6 +33,7 @@ This requires a chain of three operations:
 Add a `LocalCommand` to a host definition in your SSH config:
 ```
 Host somehost
+    PermitLocalCommand yes
     LocalCommand phook-prep %n
 ```
 
