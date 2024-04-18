@@ -27,15 +27,16 @@ This was easy to fix: use Homebrew casks.
     ```
 
 ## Change Pane Background Per SSH Host
+This requires a chain of operations:
 
-### SSH Config
+### Chain link #1: SSH Config
 Add a `LocalCommand` to a host definition in your SSH config:
 ```
 Host somehost
     LocalCommand phook-prep %n
 ```
 
-### `phook-prep`
+### Chain link #2: `phook-prep`
 Add the script below as `phook-prep` somewhere in your `PATH`. The script is called by SSH as `LocalCommand`. It first gets the parent of the parent process; the first parent is your shell running `phook-prep`, its parent is the SSH process. That process is then hooked on to with `phook`. Also, the script checks if SSH is being run in `BatchMode`. `BatchMode` is enabled, for example, when you're using Fish shell and tab completing a command like like: `scp local.file somehost:/var/lib/tar<TAB>`.
 
 ```sh
@@ -52,7 +53,7 @@ case $SSH_COMMAND_LINE in
 esac
 ```
 
-### `ssc`
+### Final link: `ssc`
 Add the script below as `ssc` somewhere in your `PATH`. Adapt the `host_to_theme` dict to your own environment. The dict contains regular expressions as keys, and Ghostty theme names as values. The script iterates over dict keys, and when it matches the host you're connecting to, it will print ANSI OSC codes to set the colors to use according to the ones in the specified Ghostty theme. As you can see from the `open` statement, this script assumes the OS being macOS, and that you've installed Ghostty into `/Applications`.
 
 ```python
