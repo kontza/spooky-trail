@@ -27,39 +27,98 @@ This was easy to fix: use Homebrew casks.
     ```
 
 ## Change Pane Background Per SSH Host
-Thoughts:
-- As Ghostty does not have scripting supported, yet, my Wezterm approach (events etc) will not work.
-- Probably https://github.com/drinchev/phook is the way to go. This is not new, I used this before starting to use Wezterm's events.
-- Color setting scripts from https://github.com/mbadolato/iTerm2-Color-Schemes.git do not work.
-- But if I split the palette setting statement into parts, it works.
-    ```sh
-    #!/bin/sh
-    # Original Red Sands
-    printf "\033]4;0;#000000;1;#ff3f00;2;#00bb00;3;#e7b000;4;#0072ff;5;#bb00bb;6;#00bbbb;7;#bbbbbb;8;#555555;9;#bb0000;10;#00bb00;11;#e7b000;12;#0072ae;13;#ff55ff;14;#55ffff;15;#ffffff\007"
-    printf "\033]10;#d7c9a7;#7a251e;#ffffff\007"
-    printf "\033]17;#a4a390\007"
-    printf "\033]19;#000000\007"
-    printf "\033]5;0;#dfbd22\007"
-    ```
-    ```sh
-    #!/bin/sh
-    # Modified Red Sands
-    printf "\033]4;0;#000000\007"
-    printf "\033]4;1;#ff3f00\007"
-    printf "\033]4;2;#00bb00\007"
-    printf "\033]4;3;#e7b000\007"
-    printf "\033]4;4;#0072ff\007"
-    printf "\033]4;5;#bb00bb\007"
-    printf "\033]4;6;#00bbbb\007"
-    printf "\033]4;7;#bbbbbb\007"
-    printf "\033]4;8;#555555\007"
-    printf "\033]4;9;#bb0000\007"
-    printf "\033]4;10;#00bb00\007"
-    printf "\033]4;11;#e7b000\007"
-    printf "\033]4;12;#0072ae\007"
-    printf "\033]4;13;#ff55ff\007"
-    printf "\033]4;14;#55ffff\007"
-    printf "\033]4;15;#ffffff\007"
-    printf "\033]10;#d7c9a7\007"
-    printf "\033]11;#7a251e\007"
-    ```
+
+### SSH Config
+Add a `LocalCommand` to a host definition in your SSH config:
+```
+Host somehost
+    LocalCommand phook-prep %n
+```
+
+### `phook-prep`
+Add the script below as `phook-prep` somewhere in your `PATH`. The script is called by SSH as `LocalCommand`. It first gets the parent of the parent process; the first parent is your shell running `phook-prep`, its parent is the SSH process. That process is then hooked on to with `phook`. Also, the script checks if SSH is being run in `BatchMode`. `BatchMode` is enabled, for example, when you're using Fish shell and tab completing a command like like: `scp local.file somehost:/var/lib/tar<TAB>`.
+
+```sh
+#!/bin/sh
+SSH_PID=$(ps -o ppid= $PPID)
+SSH_COMMAND_LINE=$(ps -eo args= $SSH_PID)
+case $SSH_COMMAND_LINE in
+*"BatchMode yes"*)
+  # BatchMode; e.g. tab completion in an 'scp' command completion on remote server
+  ;;
+*)
+  phook -p $SSH_PID -e "ssc $1" -a 'ssc reset'
+  ;;
+esac
+```
+
+### `ssc`
+Add the script below as `ssc` somewhere in your `PATH`. Adapt the `host_to_theme` dict to your own environment. The dict contains regular expressions as keys, and Ghostty theme names as values. The script iterates over dict keys, and when it matches the host you're connecting to, it will print ANSI OSC codes to set the colors to use according to the ones in the specified Ghostty theme. As you can see from the `open` statement, this script assumes the OS being macOS, and that you've installed Ghostty into `/Applications`.
+
+```python
+#!/usr/bin/env python3
+import configparser
+import re
+import sys
+
+host_to_theme = {
+    "somehost": "Mirage",
+    ".*prod": "Red Sands",
+}
+patterns = [
+    {
+        "pat": re.compile("^palette *="),
+        "fmt": "4;{0}",
+    },
+    {"pat": re.compile("^foreground *="), "fmt": "10;{0}"},
+    {"pat": re.compile("^background *="), "fmt": "11;{0}"},
+    {"pat": re.compile("^cursor-color *="), "fmt": "12;{0}"},
+]
+
+
+def set_scheme(host_name: str):
+    if host_name.strip() == "reset":
+        reset_scheme()
+        return
+    theme_name = None
+    for k in host_to_theme.keys():
+        pat = re.compile(k)
+        if pat.match(host_name) is not None:
+            theme_name = host_to_theme[k]
+            break
+    if theme_name is not None:
+        with open(
+            f"/Applications/Ghostty.app/Contents/Resources/ghostty/themes/{theme_name}",
+        ) as config_file:
+            for line in config_file.readlines():
+                line = line.strip()
+                if line is None or line.startswith("#"):
+                    continue
+                for p in patterns:
+                    mo = p["pat"].match(line)
+                    if mo is not None:
+                        format = p["fmt"].replace("\\", "").format("0")
+                        if mo.group().startswith("palette"):
+                            color = line[mo.span()[1] :].replace("=", ";").strip()
+                        else:
+                            color = f'#{line.split("=")[1].strip()}'
+                        print("\033]{0}\007".format(p["fmt"].format(color)), end="")
+
+
+def reset_scheme():
+    # Reset a palette color (OSC 104) or the foreground (OSC 110), background (OSC 111), or cursor (OSC 112) color.
+    for c in range(0, 15):
+        print(f"\033]104;{c}\007", end="")
+    print("\033]110\007", end="")
+    print("\033]111\007", end="")
+    print("\033]112\007", end="")
+
+
+if __name__ == "__main__":
+    try:
+        set_scheme(sys.argv[1])
+    except IndexError:
+        print("Gimme a hostname to work on!", file=sys.stderr)
+
+# vim: set ft=python
+```
