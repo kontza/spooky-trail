@@ -54,7 +54,7 @@ esac
 ```
 
 ### Final link: `ssc`
-Add the script below as `ssc` somewhere in your `PATH`. Adapt the `host_to_theme` dict to your own environment. The dict contains regular expressions as keys, and Ghostty theme names as values. The script iterates over dict keys, and when it matches the host you're connecting to, it will print ANSI OSC codes to set the colors to use according to the ones in the specified Ghostty theme. As you can see from the `open` statement, this script assumes the OS being macOS, and that you've installed Ghostty into `/Applications`.
+Add the script below as `ssc` somewhere in your `PATH`. Adapt the `host_to_theme` dict to your own environment. The dict contains regular expressions for host name matching as keys, and Ghostty theme names as values. The script iterates over dict keys, and when it matches the host you're connecting to, it will print ANSI OSC codes to set the colors to use according to the ones in the specified Ghostty theme. As you can see from the `open` statement, this script assumes the OS being macOS, and that you've installed Ghostty into `/Applications`.
 
 ```python
 #!/usr/bin/env python3
