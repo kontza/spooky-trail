@@ -37,7 +37,7 @@ Host somehost
 ```
 
 ### Chain link #2: `phook-prep`
-Add the script below as `phook-prep` somewhere in your `PATH`. The script is called by SSH as `LocalCommand`. It first gets the parent of the parent process; the first parent is your shell running `phook-prep`, its parent is the SSH process. That process is then hooked on to with `phook`. Also, the script checks if SSH is being run in `BatchMode`. `BatchMode` is enabled, for example, when you're using Fish shell and tab completing a command like like: `scp local.file somehost:/var/lib/tar<TAB>`.
+Add the script below as `phook-prep` somewhere in your `PATH`. The script is called by SSH as `LocalCommand`. It first gets the parent of the parent process; the first parent is your shell running `phook-prep`, and _its_ parent is the SSH process. That process is then hooked on to with `phook`. Also, the script checks if SSH is being run in `BatchMode`. `BatchMode` is enabled, for example, when you're using Fish shell and tab completing a command like like: `scp local.file somehost:/var/lib/tar<TAB>`.
 
 ```sh
 #!/bin/sh
