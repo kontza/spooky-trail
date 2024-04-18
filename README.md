@@ -44,6 +44,12 @@ Add the script below as `phook-prep` somewhere in your `PATH`. The script is cal
 SSH_PID=$(ps -o ppid= $PPID)
 SSH_COMMAND_LINE=$(ps -eo args= $SSH_PID)
 case $SSH_COMMAND_LINE in
+*"rsync"*)
+  # Bypass setting colors on rsync over SSH
+  ;;
+*"ssh -W"*)
+  # Bypass setting colors on ProxyJump stage with SSH
+  ;;
 *"BatchMode yes"*)
   # BatchMode; e.g. tab completion in an 'scp' command completion on remote server
   ;;
