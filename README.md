@@ -27,14 +27,17 @@ This was easy to fix: use Homebrew casks.
     ```
 
 ## Change Pane Background Per SSH Host
-This requires a chain of three operations:
+As a prerequisite install `phook`. Either from [drinchev's repo](https://github.com/drinchev/phook), or from [mine](https://github.com/kontza/phook).
+The actual setup operation of changing the terminal background requires a chain of three operations.
 
 ### The First Link In The Chain: SSH Config
-Add a `LocalCommand` to a host definition in your SSH config:
+Use SSH's `SetEnv` to store metadata about the theme to use, add a `LocalCommand` to run the next link's script, and finally permit local commands with `PermitLocalCommand`. As an example:
 ```
 Host somehost
     PermitLocalCommand yes
     LocalCommand phook-prep %n
+    # Theme names with whitespace in them require quoting.
+    SetEnv TERMINAL_THEME="Red Sands"
 ```
 
 ### The Middle Link: `phook-prep`
@@ -66,13 +69,11 @@ Add the script below as `ssc` somewhere in your `PATH`. Adapt the `host_to_theme
 ```python
 #!/usr/bin/env python3
 import configparser
+import os
 import re
+import subprocess
 import sys
 
-host_to_theme = {
-    "somehost": "Mirage",
-    ".*prod": "Red Sands",
-}
 patterns = [
     {
         "pat": re.compile("^palette *="),
@@ -82,21 +83,35 @@ patterns = [
     {"pat": re.compile("^background *="), "fmt": "11;{0}"},
     {"pat": re.compile("^cursor-color *="), "fmt": "12;{0}"},
 ]
+show_debug = False
+
+
+def get_theme_name(host_name: str) -> str:
+    res = subprocess.run(["ssh", "-G", host_name], capture_output=True)
+    for line in res.stdout.decode().split("\n"):
+        if "setenv terminal_theme" in line.lower():
+            theme_name = line.split("=")[-1].replace('"', "").replace("'", "")
+            if show_debug:
+                print(f"Found theme: {theme_name}")
+            return theme_name
+    return None
 
 
 def set_scheme(host_name: str):
-    if host_name.strip() == "reset":
+    if host_name == "reset":
         reset_scheme()
         return
-    theme_name = None
-    for k in host_to_theme.keys():
-        pat = re.compile(k)
-        if pat.match(host_name) is not None:
-            theme_name = host_to_theme[k]
-            break
+    theme_name = get_theme_name(host_name)
     if theme_name is not None:
+        res_dir = os.environ["GHOSTTY_RESOURCES_DIR"]
+        if res_dir is None:
+            match sys.platform:
+                case "darwin":
+                    res_dir = "/Applications/Ghostty.app/Contents/Resources/ghostty"
+                case "linux":
+                    res_dir = "/usr/share/ghostty"
         with open(
-            f"/Applications/Ghostty.app/Contents/Resources/ghostty/themes/{theme_name}",
+            f"{res_dir}/themes/{theme_name}",
         ) as config_file:
             for line in config_file.readlines():
                 line = line.strip()
@@ -110,6 +125,12 @@ def set_scheme(host_name: str):
                             color = line[mo.span()[1] :].replace("=", ";").strip()
                         else:
                             color = f'#{line.split("=")[1].strip()}'
+                        if show_debug:
+                            print(
+                                "'{0}': Would use '\\033]{1}\\007'".format(
+                                    line, p["fmt"].format(color)
+                                )
+                            )
                         print("\033]{0}\007".format(p["fmt"].format(color)), end="")
 
 
