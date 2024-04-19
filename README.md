@@ -31,7 +31,7 @@ As a prerequisite install `phook`. Either from [drinchev's repo](https://github.
 The actual setup operation of changing the terminal background requires a chain of three operations.
 
 ### The First Link In The Chain: SSH Config
-Use SSH's `SetEnv` to store metadata about the theme to use, add a `LocalCommand` to run the next link's script, and finally permit local commands with `PermitLocalCommand`. As an example:
+Use SSH's `SetEnv` to store metadata about the theme to use, add `LocalCommand` to run the next link's script, and finally permit local commands with `PermitLocalCommand`. As an example:
 ```
 Host somehost
     PermitLocalCommand yes
